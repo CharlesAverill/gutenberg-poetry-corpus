@@ -6,6 +6,8 @@ import sys
 from gutenbergdammit.ziputils import searchandretrieve
 import wordfilter
 
+wordfilter = wordfilter.Wordfilter()
+
 def clean(s):
     "removes leading numbers and trailing numbers with whitespace"
     match = re.search(r"( {3,}\d+\.?)$", s)
@@ -29,8 +31,8 @@ checks = {
             not(re.search("^[IVXDC]+\.", line)),
     # if the last line was long and this one is short, it's probably the end of
     # a paragraph
-    'not_last_para_line': lambda prev, line: \
-            not(len(prev) >= 65 and len(line) <= 65),
+    #'not_last_para_line': lambda prev, line: \
+    #        not(len(prev) >= 65 and len(line) <= 65),
     # less than 25% of the line is punctuation characters
     'punct': lambda prev, line: \
         (len([ch for ch in line if ch.isalpha() or ch.isspace()]) / \
@@ -62,9 +64,9 @@ if __name__ == '__main__':
     # numbers of inoffensive lines; added one because its presence in this
     # corpus is almost always questionable. (terms in rot13 as a kind of
     # content warning)
-    wordfilter.remove_words([codecs.encode(item, "rot_13") 
-        for item in ['ynzr', 'pevc', 'tnfu', 'fcvp']])
-    wordfilter.add_words([codecs.encode("wrj", "rot_13")])
+    for word in [codecs.encode(item, "rot_13") for item in ['ynzr', 'pevc', 'tnfu', 'fcvp']]:
+        wordfilter.removeWord(word)
+    wordfilter.addWords([codecs.encode("wrj", "rot_13")])
 
     from optparse import OptionParser
     parser = OptionParser()
@@ -76,30 +78,16 @@ if __name__ == '__main__':
     err("finding books of poetry in", options.srczip, "...")
 
     poetry = list(searchandretrieve(options.srczip, {
-            'Language': 'English',
+            #'Language': 'English',
             'Subject': lambda x: 'poetry' in x.lower(),
-            'Copyright Status': lambda x: not(x.startswith("Copyrighted"))
+            #'Copyright Status': lambda x: not(x.startswith("Copyrighted"))
     }))
 
     err("done.")
     err("finding lines of poetry in", len(poetry), "books of poetry...")
 
-    poem_lines = []
-    line_count = 0
-    for metadata, text in poetry:
-        prev = ""
-        for line in text.split("\n"):
-            line = clean(line.strip())
-            check_results = {k: v(prev, line) for k, v in checks.items()}
-            if all(check_results.values()):
-                poem_lines.append((line, metadata['Num']))
-            line_count += 1
-            prev = line
+    err("found", len(poetry), "poems")
 
-    err("done.")
-    err("found", len(poem_lines), "lines of poetry, of", line_count, "total.")
-
-    err("printing to stdout...")
-    for line in poem_lines:
-        print(json.dumps({'s': line[0], 'gid': line[1]}))
-
+    with open("data.json", "w") as file:
+        import json
+        json.dump(poetry, file, indent=2)
